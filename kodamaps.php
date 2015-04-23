@@ -4,7 +4,7 @@ Plugin Name: Kodamaps
 Author: Tomoka Baba (Robox.org)
 Plugin URI: https://github.com/RoboxOrg/kodamaps
 Description: Post the location information
-Version: 0.1.0
+Version: 0.2.0
 Author URI: http://robox.org/
 */
 
