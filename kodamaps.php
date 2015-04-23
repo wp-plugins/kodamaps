@@ -15,6 +15,7 @@ class Kodamaps_Plugin
         add_action('admin_enqueue_scripts', array($this, 'enqueue_kodamaps_admin_js'));
         add_action('admin_menu', array($this,'add_custom_box'));
         add_action('save_post', array($this,'save_postdata'));
+        add_action('wp_enqueue_scripts', array($this, 'register_kodamaps_style'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_kodamaps_js'));
         add_shortcode('kodamaps', array($this,'kodamaps_map_shortcode'));
     }
@@ -160,6 +161,18 @@ class Kodamaps_Plugin
         return $mypostdata;
     }
 
+    public function register_kodamaps_style()
+    {
+      wp_register_style (
+        'kodamaps.css',
+        plugins_url('css/kodamaps.css',__FILE__),
+        array(),
+        '1.0.0',
+        'all'
+      );
+      wp_enqueue_style('kodamaps.css');
+    }
+
     public function enqueue_kodamaps_js()
     {
         wp_register_script (
@@ -180,7 +193,9 @@ class Kodamaps_Plugin
             'addr' => '',
             'lat' => '',
             'lng' => '',
-            'zoom' => ''
+            'zoom' => '',
+            'position' => 'left',
+            'no' => 0
         );
         $merged_atts = shortcode_atts($default_atts, $atts);
         extract($merged_atts);
@@ -194,7 +209,17 @@ class Kodamaps_Plugin
                 true
             );
             wp_enqueue_script('kodamaps-js-script');
-            return $this->displayAllPostOnMap($width, $height, $addr, $lat, $lng, $zoom);
+            return $this->displayAllPostOnMap($width, $height, $addr, $lat, $lng, $zoom, $position);
+        } else if ($type === 'notuse') {
+            wp_register_script (
+                'kodamaps-js-script',
+                plugins_url('js/notusepost-map.js', __FILE__),
+                array('jquery', 'google-maps-api'),
+                filemtime(dirname(__FILE__).'/js/notusepost-map.js'),
+                true
+            );
+            wp_enqueue_script('kodamaps-js-script');
+            return $this->displayNotusePostOnMap($width, $height, $addr, $lat, $lng, $zoom, $position, $no);
         } else {
             wp_register_script (
                 'kodamaps-js-script',
@@ -204,11 +229,11 @@ class Kodamaps_Plugin
                 true
             );
             wp_enqueue_script('kodamaps-js-script');
-            return $this->displaySinglePostOnMap($width, $height, $addr, $lat, $lng, $zoom);
+            return $this->displaySinglePostOnMap($width, $height, $addr, $lat, $lng, $zoom, $position);
         }
     }
 
-    private function displaySinglePostOnMap($width, $height, $centerAddr, $centerLat, $centerLng, $zoom) {
+    private function displaySinglePostOnMap($width, $height, $centerAddr, $centerLat, $centerLng, $zoom, $position) {
         $id = get_the_ID();
         $lat = get_post_meta($id, 'kodamaps_lat_field', true);
         $lng = get_post_meta($id, 'kodamaps_lng_field', true);
@@ -224,12 +249,18 @@ class Kodamaps_Plugin
         wp_localize_script('kodamaps-js-script', 'kodamaps_post', $data);
         $width = $width === '' ? '100%' : $width.'px';
         $height = $height === '' ? '450px' : $height.'px';
+        $positionStyle = 'margin-right: auto';
+        if ($position === 'center') {
+          $positionStyle = 'margin: 0 auto';
+        } else if ($position === 'right') {
+          $positionStyle = 'margin-left: auto';
+        }
         if (is_single() || is_page()) {
-            return '<div id="map_canvas" style="width: '.$width.'; height: '.$height.'"></div>';
+            return '<div id="map_canvas" style="width: '.$width.'; height: '.$height.'; '.$positionStyle.'; max-width: 100%;"></div>';
         }
     }
 
-    private function displayAllPostOnMap($width, $height, $centerAddr, $centerLat, $centerLng, $zoom) {
+    private function displayAllPostOnMap($width, $height, $centerAddr, $centerLat, $centerLng, $zoom, $position) {
         $allposts = get_posts('numberposts=-1');
         $data = array(
             'postInfo' => array(),
@@ -253,9 +284,34 @@ class Kodamaps_Plugin
         wp_localize_script('kodamaps-js-script', 'kodamaps_posts', $data);
         $width = $width === '' ? '100%' : $width.'px';
         $height = $height === '' ? '450px' : $height.'px';
-        if (is_single() || is_page()) {
-            return '<div id="map_canvas" style="width: '.$width.'; height: '.$height.'"></div>';
+        $positionStyle = 'margin-right: auto';
+        if ($position === 'center') {
+          $positionStyle = 'margin: 0 auto';
+        } else if ($position === 'right') {
+          $positionStyle = 'margin-left: auto';
         }
+        if (is_single() || is_page()) {
+            return '<div id="map_canvas" style="width: '.$width.'; height: '.$height.'; '.$positionStyle.'; max-width: 100%;"></div>';
+        }
+    }
+
+    private function displayNotusePostOnMap($width, $height, $centerAddr, $centerLat, $centerLng, $zoom, $position, $no) {
+        $data = array(
+            'centerAddr' => $centerAddr,
+            'centerLat' => $centerLat,
+            'centerLng' => $centerLng,
+            'zoom' => $zoom
+        );
+        wp_localize_script('kodamaps-js-script', 'kodamaps_posts_'.$no, $data);
+        $width = $width === '' ? '100%' : $width.'px';
+        $height = $height === '' ? '450px' : $height.'px';
+        $positionStyle = 'margin-right: auto';
+        if ($position === 'center') {
+          $positionStyle = 'margin: 0 auto';
+        } else if ($position === 'right') {
+          $positionStyle = 'margin-left: auto';
+        }
+        return '<div id="map_canvas_'.$no.'" style="width: '.$width.'; height: '.$height.'; '.$positionStyle.'; max-width: 100%;"></div>';
     }
 }
 new Kodamaps_Plugin();
